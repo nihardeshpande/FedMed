@@ -1,7 +1,8 @@
 import torch
 
+
 # 1. Creating a tensor from plain Python data — like a nested list
-data = [[1,2],[3,4]]
+data = [[1,2],[5,4]]
 x = torch.tensor(data)
 print("tensor from list: \n",x)
 print("Shape: ", x.shape)
