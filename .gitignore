@@ -12,3 +12,6 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Dataset - too large for git, download via kaggle CLI instead
+data/
