@@ -15,3 +15,7 @@ Thumbs.db
 
 # Dataset - too large for git, download via kaggle CLI instead
 data/
+
+# Flower's official example, reference only - not part of our project
+quickstart-pytorch/
+
