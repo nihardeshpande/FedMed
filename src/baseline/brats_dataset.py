@@ -4,7 +4,14 @@ import nibabel as nib
 import torch
 from torch.utils.data import Dataset
 
-DATA_ROOT = r"data\brats2020\BraTS2020_TrainingData\MICCAI_BraTS2020_TrainingData"
+import os
+
+# Build an absolute path anchored to this file's location, not the working
+# directory - so this works no matter where you launch the script from.
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))  # .../src/baseline
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))  # .../FedMed
+DATA_ROOT = os.path.join(_PROJECT_ROOT, "data", "brats2020",
+                          "BraTS2020_TrainingData", "MICCAI_BraTS2020_TrainingData")
 MODALITIES = ["t1", "t1ce", "t2", "flair"]
 
 class BraTSDataset(Dataset):
