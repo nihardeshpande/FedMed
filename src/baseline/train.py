@@ -12,7 +12,7 @@ def main():
     print(f"Using device: {device}")
 
     # Small subset for today - just proving the loop runs correctly
-    patient_ids = [f"BraTS20_Training_{i:03d}" for i in range(1, 6)]  # 5 patients
+    patient_ids = [f"BraTS20_Training_{i:03d}" for i in range(1, 16)]  # 5 patients
     dataset = BraTSDataset(patient_ids)
     loader = DataLoader(dataset, batch_size=1, shuffle=True)
 
@@ -29,7 +29,7 @@ def main():
 
     model.train()  # puts the model in "training mode" (matters for certain layers, not all)
 
-    for epoch in range(1):  # just 1 epoch today, to confirm it runs
+    for epoch in range(5):  # just 1 epoch today, to confirm it runs
         epoch_loss = 0.0
         for step, (image, mask) in enumerate(loader):
             image = image.to(device)
