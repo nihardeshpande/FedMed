@@ -93,3 +93,32 @@
   decreased every step (2.4790 -> 2.3771) — first real confirmation the whole
   pipeline (load -> normalize -> pad -> batch -> forward -> loss -> backward ->
   step) works correctly, not just "runs without crashing."
+
+
+  ## Sep 8 — Flower federated deployment working end-to-end
+
+- Ran Flower's official quickstart-pytorch example via the Deployment Runtime
+  (real SuperLink + 2 real SuperNode processes, not simulation) after resolving
+  several environment-specific blockers in sequence:
+  - Flower's Simulation Runtime requires Ray, which does not yet support
+    Python 3.14 on Windows (confirmed via Ray's own open GitHub issues) --
+    switched to Deployment Runtime instead, which doesn't need Ray and is
+    actually closer to the spec's "3 hospital nodes on separate ports" anyway.
+  - `--clientappio-api-address` flag deprecated in current flwr version;
+    replaced with `--host`/`--port`.
+  - Windows Smart App Control blocked `flwr.exe` as an unsigned executable.
+    Confirmed (per recent Windows updates, Apr 2026+) that toggling SAC off/on
+    is no longer a one-way/reinstall-required action, so disabled it safely
+    via Windows Security > App & Browser Control.
+  - SuperNodes run in the main venv (not the SuperLink's auto-installed env),
+    so needed `flwr-datasets` and `torchvision` installed manually.
+  - ClientApp code (from `flwr new`) requires `--node-config "partition-id=X
+    num-partitions=N"` per SuperNode so each knows which data slice is its
+    own -- missing this caused a `KeyError: 'partition-id'` even though
+    nodes were otherwise connected correctly.
+- Result: 3 FedAvg rounds completed successfully across 2 real SuperNode
+  processes. Train loss decreased each round (2.101 -> 2.047 -> 2.015),
+  global accuracy improved 0.102 -> 0.221 by round 2. This confirms the full
+  federated mechanics (connect -> sample -> local train -> aggregate ->
+  evaluate -> repeat) work correctly on this machine before wiring in the
+  real FedMed U-Net.
