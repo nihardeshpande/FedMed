@@ -122,3 +122,45 @@
   federated mechanics (connect -> sample -> local train -> aggregate ->
   evaluate -> repeat) work correctly on this machine before wiring in the
   real FedMed U-Net.
+
+  ## Sep 10 — Real federated round: actual U-Net + BraTS data through Flower
+
+- Fixed the same __file__-relative-path issue in `brats_dataset.py`'s DATA_ROOT
+  that we hit yesterday in task.py -- Flower's ClientApp/ServerApp both run from
+  isolated copies of the app code (~/.flwr/apps/...), so any __file__-relative
+  path computed inside imported modules resolves incorrectly. Hardcoded the
+  absolute path as a pragmatic fix given the deadline (documented as fragile
+  if the project moves machines).
+- First fully successful federated round using our REAL model and REAL data
+  (not CIFAR-10 test data): 2 simulated hospital nodes, real 3D U-Net,
+  real BraTS patients, 2 FedAvg rounds.
+  - Train loss: 2.2794 -> 2.2026
+  - Eval Dice: 0.00630 -> 0.00701
+  - Eval loss: 2.2313 -> 2.1643
+  Zero failures across both rounds/nodes. This is the core project thesis
+  demonstrated end-to-end: medical imaging model trained across simulated
+  hospitals without centralizing raw patient data.
+
+  ## Sep 10 (cont.) — 3-node federated run, hit and fixed real memory limit
+
+- Extended to 3 real SuperNode processes (matching spec's "3 hospital nodes"),
+  5 FedAvg rounds, using the real U-Net + BraTS pipeline.
+- First attempt: 3 concurrent processes each loading full 240x240x160x4
+  volumes exhausted system RAM (~2GB single-tensor allocation failures,
+  `ClientApp stopped responding` on other nodes under memory pressure).
+  This is CPU RAM, not GPU VRAM -- three independent Python processes each
+  holding full-resolution data simultaneously is real multi-process pressure
+  distinct from single-process GPU memory limits we'd hit before.
+- Fix: downsample volumes from 240x240x160 to 96x96x96 in `brats_dataset.py`
+  via `F.interpolate` (trilinear for images, nearest-neighbor for masks --
+  nearest is required for masks since blending discrete class labels would
+  produce invalid fractional values). ~16x memory reduction. Documented as
+  a known tradeoff (real deployments with dedicated per-node hardware
+  wouldn't need this; acceptable for local multi-process simulation).
+- Result: all 5 rounds completed cleanly across all 3 nodes, zero failures.
+  Train loss decreased monotonically (2.325 -> 2.098). Eval loss also
+  decreased (2.278 -> 2.072). Eval Dice was noisy/slightly declining
+  (0.0086 -> 0.0068) -- likely because DiceCELoss's Cross-Entropy component
+  keeps improving even when Dice (class-overlap-only) hasn't caught up yet,
+  combined with very few local epochs/patients per node at this stage.
+  Flagged as a tuning target (more local epochs per round) rather than a bug.

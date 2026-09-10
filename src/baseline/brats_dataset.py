@@ -1,10 +1,16 @@
 import os
+import torch.nn.functional as F
 import numpy as np
 import nibabel as nib
 import torch
 from torch.utils.data import Dataset
 
-DATA_ROOT = r"data\brats2020\BraTS2020_TrainingData\MICCAI_BraTS2020_TrainingData"
+# NOTE: hardcoded because this file gets imported by Flower's ClientApp/ServerApp,
+# which run from isolated copies (~/.flwr/apps/...), breaking __file__-relative
+# path math. Fragile if the project moves machines - acceptable tradeoff given
+# the deadline.
+DATA_ROOT = r"C:\FedMed\data\brats2020\BraTS2020_TrainingData\MICCAI_BraTS2020_TrainingData"
+
 MODALITIES = ["t1", "t1ce", "t2", "flair"]
 
 class BraTSDataset(Dataset):
@@ -49,7 +55,21 @@ class BraTSDataset(Dataset):
         image = np.pad(image, ((0,0), (0,0), (0,0), (0,pad_amount)), mode="constant")
         mask = np.pad(mask, ((0,0), (0,0), (0,pad_amount)), mode="constant")
 
-        return torch.from_numpy(image), torch.from_numpy(mask)
+        # Downsample from 240x240x160 to 96x96x96 -- roughly 16x smaller in
+        # memory. Necessary for running 3 concurrent SuperNode processes on
+        # one machine without exhausting system RAM. Real deployments with
+        # dedicated hardware per node wouldn't need this; documented tradeoff
+        # given local multi-process simulation on a single laptop.
+        image_t = torch.from_numpy(image).unsqueeze(0)  # add batch dim for interpolate
+        image_t = F.interpolate(image_t, size=(96, 96, 96), mode="trilinear", align_corners=False)
+        image = image_t.squeeze(0)
+
+        mask_t = torch.from_numpy(mask).unsqueeze(0).unsqueeze(0).float()
+        mask_t = F.interpolate(mask_t, size=(96, 96, 96), mode="nearest")
+        mask = mask_t.squeeze(0).squeeze(0).long()
+
+        return image, mask
+
 
 if __name__ == "__main__":
     patient_ids = [f"BraTS20_Training_{i:03d}" for i in range(1, 4)]  # first 3 patients
